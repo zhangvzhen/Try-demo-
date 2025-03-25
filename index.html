@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地AI助手</title>
+    <!-- 样式部分保持不变，与之前相同 -->
+    <style>
+        :root {
+            --primary: #00d1ff;
+            --secondary: #0072ff;
+            --dark: #0a192f;
+            --darker: #020c1b;
+            --light: #ccd6f6;
+            --lighter: #e6f1ff;
+            --accent: #64ffda;
+            --text: #8892b0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(0, 209, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(0, 114, 255, 0.1) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-icon::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            background-color: var(--dark);
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .settings-btn:hover {
+            color: var(--accent);
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(10, 25, 47, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 255, 218, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .chat-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            animation: rainbow 8s linear infinite;
+            background-size: 400% 100%;
+        }
+
+        @keyframes rainbow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .messages {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) var(--dark);
+        }
+
+        .messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: var(--dark);
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background-color: var(--secondary);
+            border-radius: 3px;
+        }
+
+        .message {
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, #ff7e5f, #feb47b);
+        }
+
+        .ai-avatar {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .message-content {
+            padding-left: calc(32px + 0.75rem);
+            line-height: 1.6;
+            color: var(--lighter);
+        }
+
+        .message-content pre {
+            background-color: var(--darker);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+            border: 1px solid rgba(100, 255, 218, 0.1);
+        }
+
+        .message-content code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 0.25rem;
+            padding-left: calc(32px + 0.75rem);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        .input-area {
+            padding: 1rem;
+            border-top: 1px solid rgba(100, 255, 218, 0.1);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .message-input {
+            flex: 1;
+            background-color: rgba(10, 25, 47, 0.8);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--lighter);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .message-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 209, 255, 0.2);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: var(--darker);
+            padding: 0 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 209, 255, 0.3);
+        }
+
+        .send-btn:active {
+            transform: translateY(0);
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background-color: var(--darker);
+            border-left: 1px solid rgba(100, 255, 218, 0.1);
+            padding: 2rem;
+            transition: right 0.3s ease-in-out;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+        }
+
+        .settings-title {
+            font-size: 1.25rem;
+            color: var(--accent);
+        }
+
+        .close-settings {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-settings:hover {
+            color: var(--accent);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--light);
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: rgba(10, 25, 47, 0.8);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 6px;
+            color: var(--lighter);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, var(--accent), #00b894);
+            border: none;
+            border-radius: 6px;
+            color: var(--darker);
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.3s;
+        }
+
+        .save-btn:hover {
+            opacity: 0.9;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .settings-panel {
+                width: 85%;
+                right: -85%;
+            }
+        }
+
+        /* 科技感脉冲动画 */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 209, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 209, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 209, 255, 0); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <span>本地AI助手</span>
+            </div>
+            <button class="settings-btn" id="settingsBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                设置
+            </button>
+        </header>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <!-- 消息将在这里动态添加 -->
+                <div class="message">
+                    <div class="message-header">
+                        <div class="avatar ai-avatar">AI</div>
+                        <div class="username">本地AI助手</div>
+                    </div>
+                    <div class="message-content">
+                        您好！我是本地运行的AI助手。请先在设置中配置您的API端点，然后开始对话。
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" class="message-input" id="messageInput" placeholder="输入您的问题..." autocomplete="off">
+                <button class="send-btn" id="sendBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h3 class="settings-title">API 设置</h3>
+            <button class="close-settings" id="closeSettings">&times;</button>
+        </div>
+        
+        <div class="form-group">
+            <label for="apiEndpoint" class="form-label">API端点URL</label>
+            <input type="text" id="apiEndpoint" class="form-input" placeholder="http://localhost:1234/v1/chat/completions">
+            <small style="color: var(--text); font-size: 0.8rem;">例如: http://localhost:1234/v1/chat/completions</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="apiKey" class="form-label">API密钥 (如果需要)</label>
+            <input type="password" id="apiKey" class="form-input" placeholder="可选">
+        </div>
+        
+        <div class="form-group">
+            <label for="model" class="form-label">模型名称</label>
+            <input type="text" id="model" class="form-input" placeholder="例如: deepseek-r1-distill-qwen-7b" value="deepseek-r1-distill-qwen-7b">
+        </div>
+        
+        <div class="form-group">
+            <label for="systemPrompt" class="form-label">系统提示</label>
+            <textarea id="systemPrompt" class="form-input" rows="3" placeholder="例如: Always answer in rhymes. Today is Thursday"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="temperature" class="form-label">温度 (0-2)</label>
+            <input type="number" id="temperature" class="form-input" min="0" max="2" step="0.1" value="0.7">
+        </div>
+        
+        <div class="form-group">
+            <label for="maxTokens" class="form-label">最大令牌数 (-1表示无限制)</label>
+            <input type="number" id="maxTokens" class="form-input" value="-1">
+        </div>
+        
+        <button class="save-btn" id="saveSettings">保存设置</button>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM 元素
+            const messagesContainer = document.getElementById('messages');
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsPanel = document.getElementById('settingsPanel');
+            const closeSettings = document.getElementById('closeSettings');
+            const overlay = document.getElementById('overlay');
+            const saveSettingsBtn = document.getElementById('saveSettings');
+            
+            // 设置元素
+            const apiEndpointInput = document.getElementById('apiEndpoint');
+            const apiKeyInput = document.getElementById('apiKey');
+            const modelInput = document.getElementById('model');
+            const systemPromptInput = document.getElementById('systemPrompt');
+            const temperatureInput = document.getElementById('temperature');
+            const maxTokensInput = document.getElementById('maxTokens');
+            
+            // 对话历史
+            let conversationHistory = [];
+            
+            // 加载保存的设置
+            loadSettings();
+            
+            // 发送消息
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // 添加用户消息
+                addMessage('user', message);
+                messageInput.value = '';
+                
+                // 添加到对话历史
+                conversationHistory.push({ role: 'user', content: message });
+                
+                // 显示AI正在输入
+                showTypingIndicator();
+                
+                // 获取API设置
+                const apiEndpoint = apiEndpointInput.value;
+                
+                if (!apiEndpoint) {
+                    addMessage('ai', '请先在设置中配置您的API端点。');
+                    hideTypingIndicator();
+                    return;
+                }
+                
+                // 调用本地API
+                fetchLocalAIResponse(apiEndpoint);
+            }
+            
+            // 添加消息到聊天界面
+            function addMessage(role, content) {
+                hideTypingIndicator();
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+                
+                if (role === 'user') {
+                    messageDiv.innerHTML = `
+                        <div class="message-header">
+                            <div class="avatar user-avatar">你</div>
+                            <div class="username">用户</div>
+                        </div>
+                        <div class="message-content">${formatMessageContent(content)}</div>
+                    `;
+                } else {
+                    messageDiv.innerHTML = `
+                        <div class="message-header">
+                            <div class="avatar ai-avatar">AI</div>
+                            <div class="username">本地AI</div>
+                        </div>
+                        <div class="message-content">${formatMessageContent(content)}</div>
+                    `;
+                    
+                    // 添加到对话历史
+                    if (role === 'ai') {
+                        conversationHistory.push({ role: 'assistant', content: content });
+                    }
+                }
+                
+                messagesContainer.appendChild(messageDiv);
+                
+                // 触发动画
+                setTimeout(() => {
+                    messageDiv.style.opacity = '1';
+                    messageDiv.style.transform = 'translateY(0)';
+                }, 10);
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            // 格式化消息内容
+            function formatMessageContent(content) {
+                // 代码块处理
+                content = content.replace(/```([a-z]*)\n([\s\S]*?)\n```/g, '<pre><code class="language-$1">$2</code></pre>');
+                
+                // 行内代码
+                content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+                
+                // 换行
+                content = content.replace(/\n/g, '<br>');
+                
+                return content;
+            }
+            
+            // 显示"正在输入"指示器
+            function showTypingIndicator() {
+                hideTypingIndicator(); // 先移除已有的指示器
+                
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message';
+                typingDiv.innerHTML = `
+                    <div class="message-header">
+                        <div class="avatar ai-avatar">AI</div>
+                        <div class="username">本地AI</div>
+                    </div>
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                `;
+                
+                typingDiv.id = 'typingIndicator';
+                messagesContainer.appendChild(typingDiv);
+                
+                // 触发动画
+                setTimeout(() => {
+                    typingDiv.style.opacity = '1';
+                    typingDiv.style.transform = 'translateY(0)';
+                }, 10);
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            // 隐藏"正在输入"指示器
+            function hideTypingIndicator() {
+                const typingIndicator = document.getElementById('typingIndicator');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+            }
+            
+            // 调用本地API
+            async function fetchLocalAIResponse(apiEndpoint) {
+                try {
+                    // 构建系统消息
+                    const systemMessage = systemPromptInput.value ? 
+                        { role: 'system', content: systemPromptInput.value } : 
+                        { role: 'system', content: 'You are a helpful assistant.' };
+                    
+                    // 构建请求体 - 完全匹配您的cURL示例格式
+                    const requestBody = {
+                        model: modelInput.value,
+                        messages: [systemMessage, ...conversationHistory],
+                        temperature: parseFloat(temperatureInput.value),
+                        max_tokens: parseInt(maxTokensInput.value),
+                        stream: false
+                    };
+                    
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(apiKeyInput.value ? { 'Authorization': `Bearer ${apiKeyInput.value}` } : {})
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || `API请求失败: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // 处理响应 - 完全匹配OpenAI格式
+                    const aiResponse = data.choices[0].message.content;
+                    
+                    addMessage('ai', aiResponse);
+                } catch (error) {
+                    console.error('调用API出错:', error);
+                    addMessage('ai', `抱歉，处理您的请求时出错: ${error.message}`);
+                    
+                    // 移除最后一条用户消息，因为没有得到响应
+                    conversationHistory.pop();
+                }
+            }
+            
+            // 加载保存的设置
+            function loadSettings() {
+                const settings = JSON.parse(localStorage.getItem('localAISettings')) || {};
+                
+                if (settings.apiEndpoint) apiEndpointInput.value = settings.apiEndpoint;
+                if (settings.apiKey) apiKeyInput.value = settings.apiKey;
+                if (settings.model) modelInput.value = settings.model;
+                if (settings.systemPrompt) systemPromptInput.value = settings.systemPrompt;
+                if (settings.temperature) temperatureInput.value = settings.temperature;
+                if (settings.maxTokens) maxTokensInput.value = settings.maxTokens;
+                
+                // 初始化对话历史
+                if (systemPromptInput.value) {
+                    conversationHistory = [
+                        { role: 'system', content: systemPromptInput.value }
+                    ];
+                }
+            }
+            
+            // 保存设置
+            function saveSettings() {
+                const settings = {
+                    apiEndpoint: apiEndpointInput.value,
+                    apiKey: apiKeyInput.value,
+                    model: modelInput.value,
+                    systemPrompt: systemPromptInput.value,
+                    temperature: temperatureInput.value,
+                    maxTokens: maxTokensInput.value
+                };
+                
+                localStorage.setItem('localAISettings', JSON.stringify(settings));
+                toggleSettingsPanel();
+                
+                // 重置对话历史
+                conversationHistory = [];
+                if (systemPromptInput.value) {
+                    conversationHistory.push({ role: 'system', content: systemPromptInput.value });
+                }
+                
+                // 显示保存成功的反馈
+                addMessage('ai', '设置已保存，对话历史已重置。现在可以开始新的对话了！');
+            }
+            
+            // 切换设置面板
+            function toggleSettingsPanel() {
+                settingsPanel.classList.toggle('open');
+                overlay.classList.toggle('visible');
+            }
+            
+            // 事件监听器
+            sendBtn.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            settingsBtn.addEventListener('click', toggleSettingsPanel);
+            closeSettings.addEventListener('click', toggleSettingsPanel);
+            overlay.addEventListener('click', toggleSettingsPanel);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            
+            // 聚焦输入框
+            messageInput.focus();
+        });
+    </script>
+</body>
+</html>
